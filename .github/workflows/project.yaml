@@ -1,0 +1,287 @@
+---
+
+name: Project
+
+
+on:
+  workflow_call:
+    inputs:
+      PROJECT_URL:
+        required: true
+        description: What project to triage issues/pr for
+        type: string
+    secrets:
+      WORKFLOW_TOKEN:
+        description: Token used to with permission to the project
+        required: true
+
+
+jobs:
+
+
+  debug:
+    name: Debug
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Add To Project
+        run: |
+          echo "[Debug] github.event_name=${{ github.event_name }}";
+          echo "[Debug] github.event.action=${{ github.event.action }}";
+
+
+  project-add:
+    name: Add
+    if: ${{(
+      (
+        github.event_name == 'issues'
+          &&
+        (
+          github.event.action == 'opened'
+            ||
+          github.event.action == 'reopened'
+            ||
+          github.event.action == 'labeled'
+            ||
+          github.event.action == 'milestoned'
+            ||
+          github.event.action == 'demilestoned'
+            ||
+          github.event.action == 'closed'
+            ||
+          github.event.action == 'assigned'
+        )
+      )
+        ||
+      (
+        github.event_name == 'pull_request'
+          &&
+        (
+          github.event.action == 'opened'
+            ||
+          github.event.action == 'edited'
+            ||
+          github.event.action == 'assigned'
+            ||
+          github.event.action == 'reopened'
+            ||
+          github.event.action == 'closed'
+        )
+      )
+      )}}
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e    # v1.0.2
+        with:
+          project-url: ${{ inputs.PROJECT_URL }}
+          github-token: ${{ secrets.WORKFLOW_TOKEN }}
+
+
+
+  project-remove:
+    name: Remove
+    if: ${{(
+        github.event_name == 'issues' && github.event.action == 'transferred'
+      )}}
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Remove From Project
+        run: |
+          echo todo;
+
+
+
+  project-fields:
+    name: Field Values
+    if: ${{(
+        (github.event_name == 'issues' && github.event.action != 'transferred')
+          ||
+        (github.event_name == 'pull_request')
+      )}}
+    needs:
+      - project-add
+    runs-on: ubuntu-latest
+    outputs:
+      project-start-date:  ${{ steps.start-date.outputs.values }}
+      project-end-date:  ${{ steps.end-date.outputs.values }}
+      project-status:  ${{ steps.status.outputs.values }}
+      date-value:  ${{ steps.date-value.outputs.date }}
+    steps:
+
+      - name: Generate Date Value
+        id: date-value
+        shell: bash
+        run: |
+          echo date=$(date '+%Y-%m-%d') > $GITHUB_OUTPUT
+
+
+      - name: Fetch Start Date
+        uses: EndBug/project-fields@v2
+        id: start-date
+        with:
+          operation: get
+          fields: Start date
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+
+
+      - name: Fetch End Date
+        uses: EndBug/project-fields@v2
+        id: end-date
+        with:
+          operation: get
+          fields: End date
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+
+
+      - name: Fetch Status
+        uses: EndBug/project-fields@v2
+        id: status
+        with:
+          operation: get
+          fields: Status
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+
+
+
+  project-set-start-date:
+    name: Set Start Date
+    if: ${{(
+        (
+          (github.event_name == 'issues' && github.event.action == 'assigned')
+            ||
+          github.event_name == 'pull_request'
+        )
+          &&
+        needs.project-fields.outputs.project-start-date == ''
+      )}}
+    needs:
+      - project-fields
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set Start Date
+        if: ${{ needs.project-fields.outputs.project-start-date == '' }}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: set
+          fields: Start date
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+          values: ${{ needs.project-fields.outputs.date-value }} 
+
+
+  
+  project-set-status:
+    name: Set Status
+    if: ${{(
+        needs.project-fields.outputs.project-status != 'Awaiting Feedback'
+          &&
+        needs.project-fields.outputs.project-status != 'In progress'
+      )}}
+    needs:
+      - project-fields
+    runs-on: ubuntu-latest
+    steps:
+
+
+      - name: Set Status Planning
+        if: ${{ github.event_name == 'issues' && github.event.action == 'milestoned' }}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: set
+          fields: Status
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+          values: 'Planning'
+
+
+      - name: Set Status In Progress
+        if: ${{(
+            (github.event_name == 'issues' && github.event.action == 'assigned')
+              ||
+            github.event_name == 'pull_request' && github.event.action != 'closed'
+          )}}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: set
+          fields: Status
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+          values: 'In progress'
+
+
+      - name: Set Status done
+        if: ${{ github.event.action == 'closed' }}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: set
+          fields: Status
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+          values: 'Done'
+
+
+      - name: Clear Status
+        if: ${{(
+            (
+              (github.event_name == 'issues' && github.event.action == 'reopened')
+                ||
+              (github.event_name == 'issues' && github.event.action == 'demilestoned')
+            ) 
+            &&
+            needs.project_fields.project-status != 'Ready to Commence'
+          )}}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: clear
+          fields: Status
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+
+
+
+  project-set-end-date:
+    name: Set End Date
+    if: ${{(
+        needs.project-fields.outputs.project-start-date != ''
+          &&
+        (
+          github.event.action == 'closed'
+            ||
+          github.event.action == 'reopened'
+        )
+      )}}
+    needs:
+      - project-fields
+    runs-on: ubuntu-latest
+    steps:
+
+
+      - name: Set End date
+        if: ${{(
+            github.event_name == 'issues' && github.event.action == 'closed'
+          )}}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: set
+          fields: End date
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}
+          values: ${{ needs.project-fields.outputs.date-value }} 
+
+
+      - name: Clear End Date
+        if: ${{(
+            github.event_name == 'issues' && github.event.action == 'reopened'
+          )}}
+        uses: EndBug/project-fields@v2
+        with:
+          operation: clear
+          fields: End date
+          github_token: ${{ secrets.WORKFLOW_TOKEN }}
+          project_url: ${{ inputs.PROJECT_URL }}

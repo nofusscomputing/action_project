@@ -1,0 +1,15 @@
+
+---
+
+name: Pull Requests
+
+
+on:
+  pull_request: {}
+
+
+jobs:
+
+  pull-requests:
+    name: Pull Request
+    uses: nofusscomputing/action_pull_requests/.github/workflows/pull-requests.yaml@development
