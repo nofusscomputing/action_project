@@ -265,6 +265,8 @@ jobs:
       - name: Set End date
         if: ${{(
             github.event.action == 'closed'
+              &&
+            needs.project-fields.outputs.project-end-date == ''
           )}}
         uses: EndBug/project-fields@v2
         with:
