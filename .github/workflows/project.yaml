@@ -20,6 +20,11 @@ on:
         default: "${{ github.event_name }}"
         description: Name of event that triggered to workflow
         type: string
+      TRIAGE_ITEM_URL:
+        required: false
+        default: "none"
+        description: URL of the item that triggered the workflow (issue/PR)
+        type: string
     secrets:
       WORKFLOW_TOKEN:
         description: Token used to with permission to the project
@@ -46,8 +51,42 @@ jobs:
           echo "[Debug] inputs.TRIAGE_EVENT_NAME=${{ inputs.TRIAGE_EVENT_NAME }}";
 
 
+  prepare:
+    name: Preparation
+    runs-on: ubuntu-latest
+    outputs:
+      triage_item_url: ${{ steps.triage_item_url.outputs.triage_item_url }}
+    steps:
+
+
+      - name: Build Item URL
+        id: triage_item_url
+        shell: bash
+        run: |
+
+          if [ "${{ inputs.TRIAGE_ITEM_URL }}" == "none" ]; then
+
+            if [ "${{inputs.TRIAGE_EVENT_NAME }}" == 'pull_request' ]; then
+
+              echo "triage_item_url=https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" > $GITHUB_OUTPUT;
+
+            else
+
+              echo "triage_item_url=https://github.com/${{ github.repository }}/issues/${{ github.event.issue.number }}" > $GITHUB_OUTPUT;
+
+            fi;
+
+          else
+
+            echo "triage_item_url=${{ inputs.TRIAGE_ITEM_URL }}" > $GITHUB_OUTPUT;
+
+          fi;
+
+
   project-add:
     name: Add
+    needs:
+      - prepare
     if: ${{(
       (
         inputs.TRIAGE_EVENT_NAME == 'issues'
@@ -117,6 +156,7 @@ jobs:
         (inputs.TRIAGE_EVENT_NAME == 'pull_request')
       )}}
     needs:
+      - prepare
       - project-add
     runs-on: ubuntu-latest
     outputs:
@@ -141,6 +181,7 @@ jobs:
           fields: Start date
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
 
 
       - name: Fetch End Date
@@ -151,6 +192,7 @@ jobs:
           fields: End date
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
 
 
       - name: Fetch Status
@@ -161,6 +203,7 @@ jobs:
           fields: Status
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
 
 
 
@@ -176,6 +219,7 @@ jobs:
         needs.project-fields.outputs.project-start-date == ''
       )}}
     needs:
+      - prepare
       - project-fields
     runs-on: ubuntu-latest
     steps:
@@ -188,6 +232,7 @@ jobs:
           fields: Start date
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
           values: ${{ needs.project-fields.outputs.date-value }} 
 
 
@@ -200,6 +245,7 @@ jobs:
         needs.project-fields.outputs.project-status != 'In progress'
       )}}
     needs:
+      - prepare
       - project-fields
     runs-on: ubuntu-latest
     steps:
@@ -213,6 +259,7 @@ jobs:
           fields: Status
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
           values: 'Planning'
 
 
@@ -228,6 +275,7 @@ jobs:
           fields: Status
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
           values: 'In progress'
 
 
@@ -239,6 +287,7 @@ jobs:
           fields: Status
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
           values: 'Done'
 
 
@@ -258,6 +307,7 @@ jobs:
           fields: Status
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
 
 
 
@@ -273,6 +323,7 @@ jobs:
         )
       )}}
     needs:
+      - prepare
       - project-fields
     runs-on: ubuntu-latest
     steps:
@@ -290,6 +341,7 @@ jobs:
           fields: End date
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
           values: ${{ needs.project-fields.outputs.date-value }} 
 
 
@@ -303,3 +355,4 @@ jobs:
           fields: End date
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
+          resource_url: ${{ needs.prepare.outputs.triage_item_url }}
