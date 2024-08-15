@@ -46,10 +46,11 @@ jobs:
 
       - name: Variables
         run: |
-          echo "[Debug] github.event_name=${{ github.event_name }}";
+          echo "[Debug] github.actor=${{ github.actor }}";
           echo "[Debug] github.event.action=${{ github.event.action }}";
-          echo "[Debug] github.repository=${{ github.repository }}";
           echo "[Debug] github.event.pull_request.author_association=${{ github.event.pull_request.author_association }}";
+          echo "[Debug] github.event_name=${{ github.event_name }}";
+          echo "[Debug] github.repository=${{ github.repository }}";
           echo "[Debug] github.triggering_actor=${{ github.triggering_actor }}";
 
           echo "[Debug] inputs.TRIAGE_EVENT_ACTION=${{ inputs.TRIAGE_EVENT_ACTION }}";
