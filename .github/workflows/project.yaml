@@ -20,6 +20,11 @@ on:
         default: "${{ github.event_name }}"
         description: Name of event that triggered to workflow
         type: string
+      TRIAGE_ITEM_NUMBER:
+        required: false
+        default: 0
+        description: Number of the item that triggered the workflow (issue/PR)
+        type: number
       TRIAGE_ITEM_URL:
         required: false
         default: "none"
