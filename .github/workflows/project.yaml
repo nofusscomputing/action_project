@@ -22,9 +22,9 @@ on:
         type: string
       TRIAGE_ITEM_NUMBER:
         required: false
-        default: 0
+        default: '0'
         description: Number of the item that triggered the workflow (issue/PR)
-        type: number
+        type: string
       TRIAGE_ITEM_URL:
         required: false
         default: "none"
