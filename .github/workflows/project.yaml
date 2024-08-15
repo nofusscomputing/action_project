@@ -28,6 +28,7 @@ jobs:
         run: |
           echo "[Debug] github.event_name=${{ github.event_name }}";
           echo "[Debug] github.event.action=${{ github.event.action }}";
+          echo "[Debug] github.repository=${{ github.repository }}";
 
 
   project-add:
