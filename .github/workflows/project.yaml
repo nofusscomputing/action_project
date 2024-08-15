@@ -10,6 +10,16 @@ on:
         required: true
         description: What project to triage issues/pr for
         type: string
+      TRIAGE_EVENT_ACTION:
+        required: false
+        default: "${{ github.event.action }}"
+        description: Event action that triggered to workflow
+        type: string
+      TRIAGE_EVENT_NAME:
+        required: false
+        default: "${{ github.event_name }}"
+        description: Name of event that triggered to workflow
+        type: string
     secrets:
       WORKFLOW_TOKEN:
         description: Token used to with permission to the project
@@ -32,43 +42,46 @@ jobs:
           echo "[Debug] github.event.pull_request.author_association=${{ github.event.pull_request.author_association }}";
           echo "[Debug] github.triggering_actor=${{ github.triggering_actor }}";
 
+          echo "[Debug] inputs.TRIAGE_EVENT_ACTION=${{ inputs.TRIAGE_EVENT_ACTION }}";
+          echo "[Debug] inputs.TRIAGE_EVENT_NAME=${{ inputs.TRIAGE_EVENT_NAME }}";
+
 
   project-add:
     name: Add
     if: ${{(
       (
-        github.event_name == 'issues'
+        inputs.TRIAGE_EVENT_NAME == 'issues'
           &&
         (
-          github.event.action == 'opened'
+          inputs.TRIAGE_EVENT_ACTION == 'opened'
             ||
-          github.event.action == 'reopened'
+          inputs.TRIAGE_EVENT_ACTION == 'reopened'
             ||
-          github.event.action == 'labeled'
+          inputs.TRIAGE_EVENT_ACTION == 'labeled'
             ||
-          github.event.action == 'milestoned'
+          inputs.TRIAGE_EVENT_ACTION == 'milestoned'
             ||
-          github.event.action == 'demilestoned'
+          inputs.TRIAGE_EVENT_ACTION == 'demilestoned'
             ||
-          github.event.action == 'closed'
+          inputs.TRIAGE_EVENT_ACTION == 'closed'
             ||
-          github.event.action == 'assigned'
+          inputs.TRIAGE_EVENT_ACTION == 'assigned'
         )
       )
         ||
       (
-        github.event_name == 'pull_request'
+        inputs.TRIAGE_EVENT_NAME == 'pull_request'
           &&
         (
-          github.event.action == 'opened'
+          inputs.TRIAGE_EVENT_ACTION == 'opened'
             ||
-          github.event.action == 'edited'
+          inputs.TRIAGE_EVENT_ACTION == 'edited'
             ||
-          github.event.action == 'assigned'
+          inputs.TRIAGE_EVENT_ACTION == 'assigned'
             ||
-          github.event.action == 'reopened'
+          inputs.TRIAGE_EVENT_ACTION == 'reopened'
             ||
-          github.event.action == 'closed'
+          inputs.TRIAGE_EVENT_ACTION == 'closed'
         )
       )
       )}}
@@ -85,7 +98,7 @@ jobs:
   project-remove:
     name: Remove
     if: ${{(
-        github.event_name == 'issues' && github.event.action == 'transferred'
+        inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'transferred'
       )}}
     runs-on: ubuntu-latest
     steps:
@@ -99,9 +112,9 @@ jobs:
   project-fields:
     name: Field Values
     if: ${{(
-        (github.event_name == 'issues' && github.event.action != 'transferred')
+        (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION != 'transferred')
           ||
-        (github.event_name == 'pull_request')
+        (inputs.TRIAGE_EVENT_NAME == 'pull_request')
       )}}
     needs:
       - project-add
@@ -155,9 +168,9 @@ jobs:
     name: Set Start Date
     if: ${{(
         (
-          (github.event_name == 'issues' && github.event.action == 'assigned')
+          (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'assigned')
             ||
-          github.event_name == 'pull_request'
+          inputs.TRIAGE_EVENT_NAME == 'pull_request'
         )
           &&
         needs.project-fields.outputs.project-start-date == ''
@@ -193,7 +206,7 @@ jobs:
 
 
       - name: Set Status Planning
-        if: ${{ github.event_name == 'issues' && github.event.action == 'milestoned' }}
+        if: ${{ inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'milestoned' }}
         uses: EndBug/project-fields@v2
         with:
           operation: set
@@ -205,9 +218,9 @@ jobs:
 
       - name: Set Status In Progress
         if: ${{(
-            (github.event_name == 'issues' && github.event.action == 'assigned')
+            (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'assigned')
               ||
-            github.event_name == 'pull_request' && github.event.action != 'closed'
+            inputs.TRIAGE_EVENT_NAME == 'pull_request' && inputs.TRIAGE_EVENT_ACTION != 'closed'
           )}}
         uses: EndBug/project-fields@v2
         with:
@@ -219,7 +232,7 @@ jobs:
 
 
       - name: Set Status done
-        if: ${{ github.event.action == 'closed' }}
+        if: ${{ inputs.TRIAGE_EVENT_ACTION == 'closed' }}
         uses: EndBug/project-fields@v2
         with:
           operation: set
@@ -232,9 +245,9 @@ jobs:
       - name: Clear Status
         if: ${{(
             (
-              (github.event_name == 'issues' && github.event.action == 'reopened')
+              (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'reopened')
                 ||
-              (github.event_name == 'issues' && github.event.action == 'demilestoned')
+              (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'demilestoned')
             ) 
             &&
             needs.project_fields.project-status != 'Ready to Commence'
@@ -254,9 +267,9 @@ jobs:
         needs.project-fields.outputs.project-start-date != ''
           &&
         (
-          github.event.action == 'closed'
+          inputs.TRIAGE_EVENT_ACTION == 'closed'
             ||
-          github.event.action == 'reopened'
+          inputs.TRIAGE_EVENT_ACTION == 'reopened'
         )
       )}}
     needs:
@@ -267,7 +280,7 @@ jobs:
 
       - name: Set End date
         if: ${{(
-            github.event.action == 'closed'
+            inputs.TRIAGE_EVENT_ACTION == 'closed'
               &&
             needs.project-fields.outputs.project-end-date == ''
           )}}
@@ -282,7 +295,7 @@ jobs:
 
       - name: Clear End Date
         if: ${{(
-            github.event_name == 'issues' && github.event.action == 'reopened'
+            inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'reopened'
           )}}
         uses: EndBug/project-fields@v2
         with:
