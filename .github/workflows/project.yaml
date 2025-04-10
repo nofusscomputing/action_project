@@ -257,8 +257,18 @@ jobs:
     steps:
 
 
-      - name: Set Status Planning
-        if: ${{ inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'milestoned' }}
+      - name: Set Status Accepted
+        if: ${{(
+            (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'milestoned')
+            &&
+            (needs.project-fields.outputs.project-status != 'Done')
+            &&
+            (
+              (needs.project-fields.outputs.project-status == '')
+              ||
+              (needs.project-fields.outputs.project-status == 'Planning')
+            )
+          )}}
         uses: EndBug/project-fields@v2
         with:
           operation: set
@@ -266,7 +276,7 @@ jobs:
           github_token: ${{ secrets.WORKFLOW_TOKEN }}
           project_url: ${{ inputs.PROJECT_URL }}
           resource_url: ${{ needs.prepare.outputs.triage_item_url }}
-          values: 'Planning'
+          values: 'Accepted'
 
 
       - name: Set Status In Progress
