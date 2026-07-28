@@ -117,6 +117,8 @@ jobs:
       (
         inputs.TRIAGE_EVENT_NAME == 'pull_request'
           &&
+        github.event.pull_request.author_association == 'MEMBER'
+          &&
         (
           inputs.TRIAGE_EVENT_ACTION == 'opened'
             ||
@@ -159,7 +161,7 @@ jobs:
     if: ${{(
         (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION != 'transferred')
           ||
-        (inputs.TRIAGE_EVENT_NAME == 'pull_request')
+        (inputs.TRIAGE_EVENT_NAME == 'pull_request' && github.event.pull_request.author_association == 'MEMBER' )
       )}}
     needs:
       - prepare
@@ -219,7 +221,7 @@ jobs:
         (
           (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'assigned')
             ||
-          inputs.TRIAGE_EVENT_NAME == 'pull_request'
+          (inputs.TRIAGE_EVENT_NAME == 'pull_request' && github.event.pull_request.author_association == 'MEMBER')
         )
           &&
         needs.project-fields.outputs.project-start-date == ''
@@ -281,9 +283,17 @@ jobs:
 
       - name: Set Status In Progress
         if: ${{(
-            (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'assigned')
-              ||
-            inputs.TRIAGE_EVENT_NAME == 'pull_request' && inputs.TRIAGE_EVENT_ACTION != 'closed'
+            (
+              (inputs.TRIAGE_EVENT_NAME == 'issues' && inputs.TRIAGE_EVENT_ACTION == 'assigned')
+                ||
+              (
+                inputs.TRIAGE_EVENT_NAME == 'pull_request'
+                   &&
+                 inputs.TRIAGE_EVENT_ACTION != 'closed'
+                  &&
+                github.event.pull_request.author_association == 'MEMBER'
+              )
+            )
           )}}
         uses: EndBug/project-fields@v2
         with:
@@ -296,7 +306,7 @@ jobs:
 
 
       - name: Set Status done
-        if: ${{ inputs.TRIAGE_EVENT_ACTION == 'closed' }}
+        if: inputs.TRIAGE_EVENT_ACTION == 'closed'
         uses: EndBug/project-fields@v2
         with:
           operation: set
